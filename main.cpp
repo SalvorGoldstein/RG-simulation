@@ -166,27 +166,36 @@ double timelikeU(double t, double r, double theta, double phi,
     double ut2 = rhs / G00;
     return sqrt(ut2);
                           }
-
-void geodesics(double r , double teta, double phi, double ur , double uteta, double uphi){
-     cout << scientific << setprecision(10);
-    const int n = 8;    
+int main()
+{
+    const int n = 8;
     fstream fich;
     fich.open("Geodesics.txt", ios::out);
+
     double q[8];
     q[0] = 0.0;             
-    q[1] = r;        
-    q[2] = teta ; 
-    q[3] = phi; 
-    double ut = timelikeU(q[0], q[1], q[2], q[3], ur, uteta, uphi);
-    q[4] = ut;
+    q[1] = 1.49 * r_s;        
+    q[2] = M_PI / 2.0;       
+                             
+    q[3] = 0.0;              
+double ur     = 0.0;
+double utheta = 0.0;
+double uphi   = c / q[1];     
+
+    double ut = timelikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
+   q[4] = ut;
     q[5] = ur;
     q[6] = utheta;
-    q[7] = uphi;
+    q[7] = uphi;           
+
 
    double  tau = 0.0;
-    int steps = 1000000;
+    int steps = 10000;
     double r_scale = q[1] / c;
     double dtau =r_scale / 1000.0;
+
+    cout << scientific << setprecision(10);
+
     dual gamma[4][4][4];
     {
         dual t0 = q[0], r0 = q[1], theta0 = q[2], phi0 = q[3];
@@ -195,23 +204,10 @@ void geodesics(double r , double teta, double phi, double ur , double uteta, dou
                 for (int k = 0; k < 4; ++k)
                     gamma[i][j][k] = christoffel(t0, r0, theta0, phi0, i, j, k);
     }
-}
-int main()
-{
-    
-    
-
-        
-                             
-  
-
-
-
-
 
     for (int n_step = 0; n_step < steps; ++n_step) {
     
-        if(q[1] < r_s || q[0] < 0|| q[1] > 10*r_s){
+        if(q[1] < r_s || q[0] < 0){
             cout << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
                 fich.close();
                 break;
