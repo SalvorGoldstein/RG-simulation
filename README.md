@@ -1,6 +1,31 @@
 # Geodesics-tracer
-Here I try to do the calculation for some geodesics using autodiff.
 
-If everything is working you just have tu type make in the terminal once you are in the folder, and it should run.
-if you don't have cmake run g++ -std=c++17 main.cpp -I autodiff -I eigen-3.4.0 -o main && ./main &&rm ./main && python screen.py .
-If  you have windows, well switch to Linux, is the best troubleshooting, and advice I have.
+Computes the path of a particle or a light ray around a mass (Schwarzschild
+metric) and plots it in 3D. The curvature is computed with
+[autodiff](https://github.com/autodiff/autodiff).
+
+## What you need
+
+- `g++` (C++17)
+- the `autodiff` and `eigen-3.4.0` folders next to `main.cpp`
+- Python with `numpy` and `matplotlib` (`pip install numpy matplotlib`)
+
+## How to run
+
+In the project folder:
+
+```
+g++ -std=c++17 main.cpp -I autodiff -I eigen-3.4.0 -o main && ./main && python screen.py
+```
+
+This compiles the program, runs it (it writes `Geodesics.dat` and
+`dataforpy.txt`), then plots the result.
+
+If you have Windows, well, switch to Linux. It's the best troubleshooting advice I have.
+
+## Change the simulation
+
+Edit the values in `main()` in `main.cpp`: the mass `M`, the starting radius
+`r0`, the initial velocity and the step `dtau`.
+
+If the plot is empty, `dtau` is probably too big.
