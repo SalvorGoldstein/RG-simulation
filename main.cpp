@@ -11,9 +11,11 @@ using autodiff::wrt;
 using namespace std;
 
 constexpr double G = 6.67430e-11;
-constexpr double M = 5.972e24;
+constexpr double M = 5.972e24; //fpr earth          
 constexpr double c = 299792458.0;
-constexpr double r_s = 2.0 * G * M / (c * c);
+ double r_s = 2.0 * G * M / (c * c);
+ double r_earth = 6378137;
+  double r_moon = 3.844e8;       
 
 using GFunc = dual (*)(dual, dual, dual, dual);
 
@@ -154,9 +156,25 @@ void euler(void(sd)(double(&)[8], double, double(&)[8], int),
     for (int i = 0; i < n; i++)
         q[i] = q[i] + dt * qp[i];
 }
+
+
 double timelikeU(double t, double r, double theta, double phi,
                           double ur, double utheta, double uphi){
-                            dual dt = t, dr = r, dtheta = theta, dphi = phi;
+    dual dt = t, dr = r, dtheta = theta, dphi = phi;
+    double G00 = g00(dt, dr, dtheta, dphi).val;
+    double G11 = g11(dt, dr, dtheta, dphi).val;
+    double G22 = g22(dt, dr, dtheta, dphi).val;
+    double G33 = g33(dt, dr, dtheta, dphi).val;
+
+    double rhs = c*c - (G11*ur*ur + G22*utheta*utheta + G33*uphi*uphi);
+    double ut2 = rhs / G00;
+    
+    return sqrt(ut2);
+}
+double lightlikeU(double t, double r, double theta, double phi,
+                  double ur, double utheta, double uphi)
+{
+    dual dt = t, dr = r, dtheta = theta, dphi = phi;
     double G00 = g00(dt, dr, dtheta, dphi).val;
     double G11 = g11(dt, dr, dtheta, dphi).val;
     double G22 = g22(dt, dr, dtheta, dphi).val;
@@ -164,62 +182,75 @@ double timelikeU(double t, double r, double theta, double phi,
 
     double rhs = -(G11*ur*ur + G22*utheta*utheta + G33*uphi*uphi);
     double ut2 = rhs / G00;
+
+    if (ut2 < 0.0) {
+        cerr << "No lightlike solution for k^t at this point/direction!" << endl;
+        return NAN;
+    }
+    
     return sqrt(ut2);
-                          }
-int main()
+}
+
+
+void geodesics(double r, double theta0, double phi0,
+               double ur, double utheta, double uphi,
+               double r_max, int steps, double dtau,
+               const string& filename,bool type = true)
 {
+    cout << scientific << setprecision(10);
     const int n = 8;
     fstream fich;
-    fich.open("Geodesics.txt", ios::out);
-
+    fich.open(filename, ios::out);
+    fich << scientific << setprecision(10);   
     double q[8];
-    q[0] = 0.0;             
-    q[1] = 1.49 * r_s;        
-    q[2] = M_PI / 2.0;       
-                             
-    q[3] = 0.0;              
-double ur     = 0.0;
-double utheta = 0.0;
-double uphi   = c / q[1];     
+    q[0] = 0.0;
+    q[1] = r;
+    q[2] = theta0;
+    q[3] = phi0;
+    double ut;
+    if(type){
+       ut = timelikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
+    if (!isfinite(ut)) { cerr << "invalid initial velocity" << endl; fich.close(); return; }
+    }
+    else{
+    ut = lightlikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
+    if (!isfinite(ut)) { cerr << "invalid initial velocity" << endl; fich.close(); return; }
 
-    double ut = timelikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
-   q[4] = ut;
+    }
+    
+    q[4] = ut;
     q[5] = ur;
     q[6] = utheta;
-    q[7] = uphi;           
+    q[7] = uphi;
 
-
-   double  tau = 0.0;
-    int steps = 10000;
-    double r_scale = q[1] / c;
-    double dtau =r_scale / 1000.0;
-
-    cout << scientific << setprecision(10);
-
-    dual gamma[4][4][4];
-    {
-        dual t0 = q[0], r0 = q[1], theta0 = q[2], phi0 = q[3];
-        for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j)
-                for (int k = 0; k < 4; ++k)
-                    gamma[i][j][k] = christoffel(t0, r0, theta0, phi0, i, j, k);
-    }
-
+    double tau = 0.0;
     for (int n_step = 0; n_step < steps; ++n_step) {
-    
-        if(q[1] < r_s || q[0] < 0){
-            cout << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
-                fich.close();
-                break;
-                return 0;
+        if (q[1] < 1.01*r_s || q[0] < 0.0 || q[1] > r_max) {  
+            break;
         }
-        else{
-        cout << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
-        fich  << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
+        fich << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;   
         euler(sda, q, tau, dtau, n);
-        tau += dtau;}
+        tau += dtau;
     }
-
     fich.close();
+}
+
+int main()
+{
+    fstream rich;
+    rich.open("dataforpy.txt", ios::out);
+    rich << r_s << endl;
+    rich << r_moon << endl;
+    rich << r_earth << endl;
+    rich.close();
+double r0    = r_moon; 
+double v = 1.1*sqrt(G * M / r0); // be logic to what you need if light put c, anything else think.
+double uphi  = v / r0;
+double dtau  = 3600;   // adapt it for what you need (for exemple near to r_s (r_s / c) / 200.0 work)
+int    steps = 20000;               
+double r_max = 2.0 * r_moon;        
+geodesics(r0, M_PI/2.0, 0.0, 0.0, 0.0, uphi,
+          r_max, steps, dtau, "Geodesics.dat", true); // put false for light like particules and true for time like particule.
+
     return 0;
 }
