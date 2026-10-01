@@ -10,6 +10,14 @@ metric) and plots it in 3D. The curvature is computed with
 - the `autodiff` and `eigen-3.4.0` folders next to `main.cpp`
 - Python with `numpy` and `matplotlib` (`pip install numpy matplotlib`)
 
+## How to download
+
+Clone the repo with :
+
+```
+git clone https://github.com/SalvorGoldstein/RG-simulation.git
+```
+It should run fine.
 ## How to run
 
 In the project folder:
