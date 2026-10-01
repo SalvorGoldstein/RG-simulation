@@ -243,14 +243,14 @@ int main()
     rich << r_moon << endl;
     rich << r_earth << endl;
     rich.close();
-double r0    = r_moon; 
-double v = 1.1*sqrt(G * M / r0); // be logic to what you need if light put c, anything else think.
+double r0    = 3*r_s; // don't put anything smaller that r_s please.
+double v = c; // be logic to what you need if light put c, anything else think. (for a circulars orbit and a time like particule it's  sqrt(G * M / r0))
 double uphi  = v / r0;
-double dtau  = 3600;   // adapt it for what you need (for exemple near to r_s (r_s / c) / 200.0 work)
+double dtau  = (r_s / c) / 200.0;   // adapt it for what you need (for exemple near to r_s , (r_s / c) / 200.0 work)
 int    steps = 20000;               
 double r_max = 2.0 * r_moon;        
 geodesics(r0, M_PI/2.0, 0.0, 0.0, 0.0, uphi,
-          r_max, steps, dtau, "Geodesics.dat", true); // put false for light like particules and true for time like particule.
+          r_max, steps, dtau, "Geodesics.dat", false); // put false for light like particules and true for time like particule.
 
     return 0;
 }
