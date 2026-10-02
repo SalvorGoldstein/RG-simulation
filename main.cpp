@@ -3,21 +3,16 @@
 #include <cmath>
 #include <fstream>
 #include <autodiff/forward/dual.hpp>
+#include "outfunc.h"
 
 using autodiff::dual;
-using autodiff::at;
-using autodiff::derivative;
-using autodiff::wrt;
 using namespace std;
 
-constexpr double G = 6.67430e-11;
-constexpr double M = 5.972e24; //fpr earth          
-constexpr double c = 299792458.0;
- double r_s = 2.0 * G * M / (c * c);
- double r_earth = 6378137;
-  double r_moon = 3.844e8;       
+constexpr double M = 5.972e24; //for earth
 
-using GFunc = dual (*)(dual, dual, dual, dual);
+double r_s = 2.0 * G * M / (c * c);
+double r_earth = 6378137;
+double r_moon = 3.844e8;
 
 dual zero(dual, dual, dual, dual)
 {
@@ -69,63 +64,7 @@ dual ig33(dual, dual r, dual theta, dual)
     return -1.0 / (r * r * sin(theta) * sin(theta));
 }
 
-dual partial(GFunc function,
-             dual t, dual r, dual theta, dual phi,
-             int coordinate)
-{
-    switch(coordinate) {
-        case 0:
-            return derivative(function, wrt(t), at(t, r, theta, phi));
-        case 1:
-            return derivative(function, wrt(r), at(t, r, theta, phi));
-        case 2:
-            return derivative(function, wrt(theta), at(t, r, theta, phi));
-        case 3:
-            return derivative(function, wrt(phi), at(t, r, theta, phi));
-        default:
-            return 0.0;
-    }
-}
-
-dual christoffel(dual t, dual r, dual theta, dual phi,
-                 int i, int k, int l)
-{
-    GFunc g[4][4];
-    GFunc invg[4][4];
-
-    for(int a = 0; a < 4; ++a) {
-        for(int b = 0; b < 4; ++b) {
-            g[a][b] = zero;
-            invg[a][b] = zero;
-        }
-    }
-
-    g[0][0] = g00;
-    g[1][1] = g11;
-    g[2][2] = g22;
-    g[3][3] = g33;
-
-    invg[0][0] = ig00;
-    invg[1][1] = ig11;
-    invg[2][2] = ig22;
-    invg[3][3] = ig33;
-
-    dual sum = 0.0;
-
-    for(int m = 0; m < 4; ++m) {
-        const dual dg_mk_dl = partial(g[m][k], t, r, theta, phi, l);
-        const dual dg_ml_dk = partial(g[m][l], t, r, theta, phi, k);
-        const dual dg_kl_dm = partial(g[k][l], t, r, theta, phi, m);
-
-        sum += invg[i][m](t, r, theta, phi)
-             * (dg_mk_dl + dg_ml_dk - dg_kl_dm);
-    }
-
-    return 0.5 * sum;
-}
-
-
-void sda(double (&q)[8], double tau, double (&qp)[8], int n)
+void sda(double (&q)[8], double tau, double (&qp)[8], int n, const met& g, const met& invg)
 {
     double t = q[0], r = q[1], theta = q[2], phi = q[3];
     double u[4] = { q[4], q[5], q[6], q[7] };
@@ -139,118 +78,43 @@ void sda(double (&q)[8], double tau, double (&qp)[8], int n)
         double sum = 0.0;
         for (int k = 0; k < 4; ++k) {
             for (int l = 0; l < 4; ++l) {
-                dual g = christoffel(dt, dr, dtheta, dphi, i, k, l);
-                sum += g.val * u[k] * u[l];
+                dual gam = christoffel(dt, dr, dtheta, dphi, i, k, l, g, invg);
+                sum += gam.val * u[k] * u[l];
             }
         }
         qp[4 + i] = -sum;
     }
 }
 
-
-void euler(void(sd)(double(&)[8], double, double(&)[8], int),
-           double (&q)[8], double t, double dt, int n)
-{
-    double qp[8];
-    sd(q, t, qp, n);
-    for (int i = 0; i < n; i++)
-        q[i] = q[i] + dt * qp[i];
-}
-
-
-double timelikeU(double t, double r, double theta, double phi,
-                          double ur, double utheta, double uphi){
-    dual dt = t, dr = r, dtheta = theta, dphi = phi;
-    double G00 = g00(dt, dr, dtheta, dphi).val;
-    double G11 = g11(dt, dr, dtheta, dphi).val;
-    double G22 = g22(dt, dr, dtheta, dphi).val;
-    double G33 = g33(dt, dr, dtheta, dphi).val;
-
-    double rhs = c*c - (G11*ur*ur + G22*utheta*utheta + G33*uphi*uphi);
-    double ut2 = rhs / G00;
-    
-    return sqrt(ut2);
-}
-double lightlikeU(double t, double r, double theta, double phi,
-                  double ur, double utheta, double uphi)
-{
-    dual dt = t, dr = r, dtheta = theta, dphi = phi;
-    double G00 = g00(dt, dr, dtheta, dphi).val;
-    double G11 = g11(dt, dr, dtheta, dphi).val;
-    double G22 = g22(dt, dr, dtheta, dphi).val;
-    double G33 = g33(dt, dr, dtheta, dphi).val;
-
-    double rhs = -(G11*ur*ur + G22*utheta*utheta + G33*uphi*uphi);
-    double ut2 = rhs / G00;
-
-    if (ut2 < 0.0) {
-        cerr << "No lightlike solution for k^t at this point/direction!" << endl;
-        return NAN;
-    }
-    
-    return sqrt(ut2);
-}
-
-
-void geodesics(double r, double theta0, double phi0,
-               double ur, double utheta, double uphi,
-               double r_max, int steps, double dtau,
-               const string& filename,bool type = true)
-{
-    cout << scientific << setprecision(10);
-    const int n = 8;
-    fstream fich;
-    fich.open(filename, ios::out);
-    fich << scientific << setprecision(10);   
-    double q[8];
-    q[0] = 0.0;
-    q[1] = r;
-    q[2] = theta0;
-    q[3] = phi0;
-    double ut;
-    if(type){
-       ut = timelikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
-    if (!isfinite(ut)) { cerr << "invalid initial velocity" << endl; fich.close(); return; }
-    }
-    else{
-    ut = lightlikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi);
-    if (!isfinite(ut)) { cerr << "invalid initial velocity" << endl; fich.close(); return; }
-
-    }
-    
-    q[4] = ut;
-    q[5] = ur;
-    q[6] = utheta;
-    q[7] = uphi;
-
-    double tau = 0.0;
-    for (int n_step = 0; n_step < steps; ++n_step) {
-        if (q[1] < 1.01*r_s || q[0] < 0.0 || q[1] > r_max) {  
-            break;
-        }
-        fich << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;   
-        euler(sda, q, tau, dtau, n);
-        tau += dtau;
-    }
-    fich.close();
-}
-
 int main()
 {
+    met g(4 , vector<func>(4,zero) );
+    met invg(4 , vector<func>(4,zero) );
+    g[0][0] = g00;
+    g[1][1] = g11;
+    g[2][2] = g22;
+    g[3][3] = g33;
+
+    invg[0][0] = ig00;
+    invg[1][1] = ig11;
+    invg[2][2] = ig22;
+    invg[3][3] = ig33;
     fstream rich;
     rich.open("dataforpy.txt", ios::out);
     rich << r_s << endl;
     rich << r_moon << endl;
     rich << r_earth << endl;
     rich.close();
-double r0    = 3*r_s; // don't put anything smaller that r_s please.
-double v = c; // be logic to what you need if light put c, anything else think. (for a circulars orbit and a time like particule it's  sqrt(G * M / r0))
-double uphi  = v / r0;
-double dtau  = (r_s / c) / 200.0;   // adapt it for what you need (for exemple near to r_s , (r_s / c) / 200.0 work)
-int    steps = 20000;               
-double r_max = 2.0 * r_moon;        
-geodesics(r0, M_PI/2.0, 0.0, 0.0, 0.0, uphi,
-          r_max, steps, dtau, "Geodesics.dat", false); // put false for light like particules and true for time like particule.
+    double r0    = r_moon; // don't put anything smaller than r_s please.
+    double v = 1.01*sqrt(G * M / r0); // be logical about what you need: if light, put c; for anything else think (for a circular orbit and a timelike particle it's sqrt(G * M / r0))
+    double uphi  = v / (sqrt(2)*r0);
+    double uteta  = v / (sqrt(2)*r0);
+    double dtau  = 3600;   // adapt it to what you need (for example, near r_s, (r_s / c) / 200.0 works)
+    int    steps = 20000;
+    double r_max = 2.0 * r_moon;
+
+    geodesics(r0, M_PI/2.0, 0.0, 0.0, uteta, uphi,
+              r_max, steps, dtau, "Geodesics.dat", g, invg, sda, 1.01 * r_s, true); // put false for light-like particles and true for time-like particles.
 
     return 0;
 }
