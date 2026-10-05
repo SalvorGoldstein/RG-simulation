@@ -23,7 +23,7 @@ It should run fine.
 In the project folder:
 
 ```
-g++ -std=c++17 main.cpp -I autodiff -I eigen-3.4.0 -o main && ./main && python screen.py
+g++ -std=c++17 main.cpp -I autodiff -I eigen-3.4.0 -o main && ./main && python Schwartzschield_aff.py
 ```
 
 This compiles the program, runs it (it writes `Geodesics.dat` and
