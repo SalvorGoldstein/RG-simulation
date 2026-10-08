@@ -1,7 +1,8 @@
-#include "outfunc.h"
+#include "geodesic.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cmath>
 
 using autodiff::at;
 using autodiff::derivative;
@@ -23,48 +24,61 @@ dual partial(const func& fn,
     }
 }
 
-dual christoffel(dual t, dual r, dual theta, dual phi,
-                 int i, int k, int l,
+func christoffel(int i, int k, int l,
                  const met& g, const met& invg)
 {
-    dual sum = 0.0;
-    for (int m = 0; m < 4; ++m) {
-        const dual dg_mk_dl = partial(g[m][k], t, r, theta, phi, l);
-        const dual dg_ml_dk = partial(g[m][l], t, r, theta, phi, k);
-        const dual dg_kl_dm = partial(g[k][l], t, r, theta, phi, m);
+    return [i, k, l, g, invg](dual t, dual r, dual theta, dual phi)
+    {
+        dual sum = 0.0;
+        for (int m = 0; m < 4; ++m) {
+            const dual dg_mk_dl = partial(g[m][k], t, r, theta, phi, l);
+            const dual dg_ml_dk = partial(g[m][l], t, r, theta, phi, k);
+            const dual dg_kl_dm = partial(g[k][l], t, r, theta, phi, m);
 
-        sum += invg[i][m](t, r, theta, phi)
-             * (dg_mk_dl + dg_ml_dk - dg_kl_dm);
-    }
-    return 0.5 * sum;
+            sum += invg[i][m](t, r, theta, phi)
+                 * (dg_mk_dl + dg_ml_dk - dg_kl_dm);
+        }
+        dual res = 0.5 * sum;
+        return res;
+    };
 }
 
 // ---------- equations of motion ----------
-
-
 void euler(rhs_fn sd,
            double (&q)[8], double t, double dt, int n,
-           const met& g, const met& invg)
+           const christ& Gam)
 {
     double qp[8];
-    sd(q, t, qp, n, g, invg);
+    sd(q, t, qp, n, Gam);
     for (int i = 0; i < n; i++)
         q[i] += dt * qp[i];
 }
 
-// ---------- initial conditions ----------
+// ---------- initial conditions (any symmetric metric) ----------
 double timelikeU(double t, double r, double theta, double phi,
                  double ur, double utheta, double uphi,
                  const met& g)
 {
     dual dt = t, dr = r, dtheta = theta, dphi = phi;
-    double G00 = g[0][0](dt, dr, dtheta, dphi).val;
-    double G11 = g[1][1](dt, dr, dtheta, dphi).val;
-    double G22 = g[2][2](dt, dr, dtheta, dphi).val;
-    double G33 = g[3][3](dt, dr, dtheta, dphi).val;
 
-    double rhs = c * c - (G11 * ur * ur + G22 * utheta * utheta + G33 * uphi * uphi);
-    return sqrt(rhs / G00);   // NaN if invalid, caught by isfinite in geodesics()
+    double gm[4][4];
+    for (int a = 0; a < 4; ++a)
+        for (int b = 0; b < 4; ++b)
+            gm[a][b] = g[a][b](dt, dr, dtheta, dphi).val;
+
+    double u[4] = { 0.0, ur, utheta, uphi };    // u[0] is the unknown
+
+    double A = gm[0][0];
+    double B = 0.0;
+    double C = -c * c;                          // kappa = c^2
+    for (int i = 1; i < 4; ++i) {
+        B += 2.0 * gm[0][i] * u[i];
+        for (int j = 1; j < 4; ++j)
+            C += gm[i][j] * u[i] * u[j];
+    }
+
+    double D = B * B - 4.0 * A * C;
+    return sqrt(D) / (2.0 * A) - B / (2.0 * A); // NaN if D < 0, caught by isfinite in geodesics()
 }
 
 double lightlikeU(double t, double r, double theta, double phi,
@@ -72,17 +86,29 @@ double lightlikeU(double t, double r, double theta, double phi,
                   const met& g)
 {
     dual dt = t, dr = r, dtheta = theta, dphi = phi;
-    double G00 = g[0][0](dt, dr, dtheta, dphi).val;
-    double G11 = g[1][1](dt, dr, dtheta, dphi).val;
-    double G22 = g[2][2](dt, dr, dtheta, dphi).val;
-    double G33 = g[3][3](dt, dr, dtheta, dphi).val;
 
-    double ut2 = -(G11 * ur * ur + G22 * utheta * utheta + G33 * uphi * uphi) / G00;
-    if (ut2 < 0.0) {
+    double gm[4][4];
+    for (int a = 0; a < 4; ++a)
+        for (int b = 0; b < 4; ++b)
+            gm[a][b] = g[a][b](dt, dr, dtheta, dphi).val;
+
+    double u[4] = { 0.0, ur, utheta, uphi };
+
+    double A = gm[0][0];
+    double B = 0.0;
+    double C = 0.0;                             // kappa = 0
+    for (int i = 1; i < 4; ++i) {
+        B += 2.0 * gm[0][i] * u[i];
+        for (int j = 1; j < 4; ++j)
+            C += gm[i][j] * u[i] * u[j];
+    }
+
+    double D = B * B - 4.0 * A * C;
+    if (D < 0.0) {
         cerr << "No lightlike solution for k^t at this point/direction!" << endl;
         return NAN;
     }
-    return sqrt(ut2);
+    return (-B + sqrt(D)) / (2.0 * A);
 }
 
 // ---------- main routine ----------
@@ -90,9 +116,9 @@ void geodesics(double r, double theta0, double phi0,
                double ur, double utheta, double uphi,
                double r_max, int steps, double dtau,
                const string& filename,
-               const met& g, const met& invg,
+               const met& g, const christ& Gam,
                rhs_fn sd, double r_min,
-               bool type)                   
+               bool type)
 {
     const int n = 8;
     ofstream fich(filename);
@@ -101,7 +127,7 @@ void geodesics(double r, double theta0, double phi0,
     double q[8] = { 0.0, r, theta0, phi0, 0.0, ur, utheta, uphi };
 
     double ut = type ? timelikeU (q[0], q[1], q[2], q[3], ur, utheta, uphi, g)
-                 : lightlikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi, g);
+                     : lightlikeU(q[0], q[1], q[2], q[3], ur, utheta, uphi, g);
     if (!isfinite(ut)) {
         cerr << "invalid initial velocity" << endl;
         return;
@@ -110,10 +136,10 @@ void geodesics(double r, double theta0, double phi0,
 
     double tau = 0.0;
     for (int step = 0; step < steps; ++step) {
-        if (q[1] < r_min|| q[0] < 0.0 || q[1] > r_max)
+        if (!isfinite(q[1]) || q[1] < r_min || q[0] < 0.0 || q[1] > r_max)
             break;
         fich << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << '\n';
-        euler(sd, q, tau, dtau, n, g, invg);
+        euler(sd, q, tau, dtau, n, Gam);
         tau += dtau;
     }
 }
