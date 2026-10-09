@@ -39,11 +39,11 @@ This compiles the program, runs it (it writes `Geodesics.dat` and
 
 | Command | What it does |
 |---|---|
-| `make` | compile only |
-| `make execute` | compile and run |
-| `make aff` | run if needed, then plot |
+| `make` | do not use |
+| `make executei` | compile and run |
+| `make affi` | run if needed, then plot |
 | `make clean` | remove compiled files |
-
+i being either 1 for multgeo, and 2 for forvideo.
 Always run from the project folder, because the program and the Python script
 read and write their files there.
 
