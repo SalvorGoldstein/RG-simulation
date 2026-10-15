@@ -36,7 +36,7 @@ int main()
 
     for (int i = 0; i < 4; ++i)
         for (int j = 0; j < 4; ++j)
-            g[i][j] = schwarzschild(i, j);        // or kerr(i, j)
+            g[i][j] = kerr(i, j);        // or kerr(i, j)
 
     invg = inverseMet(g);
 
@@ -58,16 +58,16 @@ int main()
     
     double uteta =0;
     double dtau  = (r_s / c) / 200.0;
-    int    steps = 5000;
+    int    steps = 10000;
     double r_max = 4 * r_s;
 
 
-    for(double i = 1.01; i< 1.9 ; i = i+0.01){
+    for(double i = 1.1; i< 2 ; i = i+0.1){
         double uphi  = v / (r_s*i);
     geodesics(r_s*i, M_PI/2.0, 0.0, 0.0, uteta, uphi,
               r_max, steps, dtau, "data/Geodesics"+to_string(i)+"plus.dat", g, Gam, sda, r_s, false);
     }
-    for(double j = 1.01; j< 1.9 ; j = j+0.01){
+    for(double j = 1.1; j< 2 ; j = j+0.1){
     double uphi  = -v / (r_s*j);
     geodesics(r_s*j, M_PI/2.0, 0.0, 0.0, uteta, uphi,
               r_max, steps, dtau, "data/Geodesics"+to_string(j)+"minus.dat", g, Gam, sda,  r_s, false);

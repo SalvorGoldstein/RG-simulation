@@ -24,16 +24,16 @@ execute1: multiplegeo
 execute2: forvideo
 	./forvideo
 
-aff1: Geodesics.dat
+aff2: Geodesics.dat
 	python python/Schwartzschield_aff.py
 
-aff2: data
+aff1: 
 	python python/Geodesics_topview.py
 
 Geodesics1.dat: multiplegeo
 	./multiplegeo
 
 clean:
-	rm -f $(OBJETS1) multiplegeo
+	rm -f $(OBJETS1) multiplegeo forvideo
 
 .PHONY: all execute aff clean
