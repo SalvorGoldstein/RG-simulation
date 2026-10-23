@@ -1,14 +1,14 @@
-#include "metricoperator.h"
-#include "funcoperator.h"     // constant, +, -, *, /
+#pragma once
+#include <vector>
+#include "types.hpp"
+#include "funcoperator.hpp"   // constant, +, -, *, /
 
-using namespace std;
+namespace rgsim {
 
-
-
-met minorOf(const met& m, int row, int col)
+inline met minorOf(const met& m, int row, int col)
 {
     int n = m.size();
-    met s(n - 1, vector<func>(n - 1));
+    met s(n - 1, std::vector<func>(n - 1));
     for (int i = 0, a = 0; i < n; ++i) {
         if (i == row) continue;
         for (int j = 0, b = 0; j < n; ++j) {
@@ -20,7 +20,7 @@ met minorOf(const met& m, int row, int col)
     return s;
 }
 
-func determinant(const met& m)
+inline func determinant(const met& m)
 {
     int n = m.size();
     if (n == 1) return m[0][0];
@@ -33,12 +33,11 @@ func determinant(const met& m)
     return sum;
 }
 
-
-met inverseMet(const met& g)
+inline met inverseMet(const met& g)
 {
     int n = g.size();
     func det = determinant(g);                 // built once, shared
-    met inv(n, vector<func>(n));
+    met inv(n, std::vector<func>(n));
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j) {
             func cof = determinant(minorOf(g, j, i));   // transpose built in: (j, i)
@@ -47,3 +46,5 @@ met inverseMet(const met& g)
         }
     return inv;
 }
+
+} // namespace rgsim

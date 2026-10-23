@@ -1,133 +1,124 @@
-# Geodesics-tracer
+# General Relativity Library
 
-Computes the path of a particle or a light ray in a curved spacetime and plots
-it in 3D. You write the metric once, and the program builds everything else
-from it: the inverse metric, the Christoffel symbols and the equations of
-motion. Derivatives are computed with
-[autodiff](https://github.com/autodiff/autodiff).
-
-The metric can be any symmetric 4x4 metric (diagonal or not) in any
-coordinates `(x0, x1, x2, x3)`. Schwarzschild and Kerr (Boyer-Lindquist
-coordinates `(t, r, theta, phi)`) are included, and you can define your own in
-`main.cc`.
+With this library you can compute the Christoffel symbols for any 4x4 metric and use them to code your own metric (there is an example C++ file showing how). You can also compute the path of a particle or a light ray with the `geodesics` function. Most of the calculation relies on the derivatives provided by [autodiff](https://github.com/autodiff/autodiff).
 
 ## What you need
 
 - `g++` (C++17) and `make`
-- the `autodiff` and `eigen-3.4.0` folders in `cc/third_party/`
+- the `autodiff` and `eigen-3.4.0` folders in `rgsim/third_party/`
 - Python with `numpy` and `matplotlib` (`pip install numpy matplotlib`)
 
 ## How to download
 
-Clone the repo with :
-
-```
+```bash
 git clone https://github.com/SalvorGoldstein/RG-simulation.git
 ```
-It should run fine.
 
-## How to run
+## How to use it
 
-From the project folder (the one containing the `Makefile`):
-
-```
-make execute aff
-```
-
-This compiles the program, runs it (it writes `Geodesics.dat` and
-`dataforpy.txt` in the project folder), then plots the result.
-
-| Command | What it does |
-|---|---|
-| `make` | do not use |
-| `make executei` | compile and run |
-| `make affi` | run if needed, then plot |
-| `make clean` | remove compiled files |
-i being either 1 for multgeo, and 2 for forvideo.
-Always run from the project folder, because the program and the Python script
-read and write their files there.
-
-If you have Windows, well, switch to Linux. It's the best troubleshooting advice I have.
-
-## How the code is organised
-
-All the C++ is in `cc/`.
-
-| File | What it does |
-|---|---|
-| `main.cc` | choice of metric, initial conditions, equations of motion (`sda`), call to `geodesics` |
-| `types.h` | the types `func`, `met`, `christ` and the constants `G`, `c` |
-| `metric.h/.cc` | the constants of the problem (`M`, `r_s`, `J`, Kerr spin...) and the ready-made metrics `schwarzschild` and `kerr` |
-| `geodesic.h/.cc` | derivatives (`partial`), Christoffel symbols, Euler step, initial velocity, main loop (`geodesics`) |
-| `funcoperator.h/.cc` | lets you add, subtract, multiply and divide functions (`f + g`, `f * g`, ...) and make constant functions |
-| `metricoperator.h/.cc` | determinant and inverse of a matrix of functions |
-
-The main types are:
-
-- `func`: a function of the four coordinates `(t, r, theta, phi)`
-- `met`: a 4x4 table of `func` (the metric `g`, or its inverse `invg`)
-- `christ`: a 4x4x4 table of `func` (the Christoffel symbols)
-
-## Change the simulation
-
-**Initial conditions.** Edit the values in `main()` in `cc/main.cc`: the
-starting radius `r0`, the initial velocity, the step `dtau` and the number of
-`steps`. Put `true` at the end of the `geodesics(...)` call for a massive
-particle and `false` for light. If the plot is empty, `dtau` is probably too
-big.
-
-**Constants.** The mass `M` and the Kerr `spin` (from 0 to 1) are in
-`cc/metric.h`.
-
-**Choose a metric.** In `main()`, the loop that fills `g` calls one metric
-function. Change its name:
+Your main file must be placed in `RG-simulation`, next to the library folder `rgsim`. It must include the library header:
 
 ```cpp
-g[i][j] = schwarzschild(i, j);   // or kerr(i, j), or mymetric(i, j)
+#include <rgsim/rgsim.hpp>
 ```
 
-**Define your own metric.** Write a function in `main.cc` with the same shape
-as `schwarzschild` in `cc/metric.cc`. Each `if` gives one component, and every
-component you don't write is 0. You only write `i <= j`, the symmetric one is
-filled for you.
+To use the example metrics, also add:
 
 ```cpp
-func mymetric(int i, int j)
+#include "example_metric.h"
+```
+
+You can then write your code in your main file. The main function is `geodesics`, and its arguments are:
+
+```cpp
+geodesics(double x1, double x2, double x3,
+          double u1, double u2, double u3,
+          int steps, double dtau,
+          const std::string& filename,
+          const met& g, const christ& Gam,
+          const rhs_fn& sd = geo,
+          bool type = true,
+          double x1max = infinity, double x2max = infinity, double x3max = infinity,
+          double x1min = minusinfinity, double x2min = minusinfinity, double x3min = minusinfinity);
+```
+
+- `type = true` computes a timelike path (a massive particle), `type = false` a lightlike path (a light ray).
+- `x1max`, `x2max`, `x3max`, `x1min`, `x2min`, `x3min` stop the integration when the path leaves the given range. By default there is no limit.
+- For a black hole, set `x1min` to the Schwarzschild radius, so the integration stops at the horizon.
+
+The parameters (mass, spin and charge) of the Schwarzschild-type metrics are set in `example_metric.h`.
+
+## How to compile
+
+You can compile as you wish, but the command must include:
+
+```
+-I rgsim/third_party/autodiff -I rgsim/third_party/eigen-3.4.0
+```
+
+For example:
+
+```bash
+g++ -std=c++17 main.cpp -I . -I rgsim/third_party/autodiff -I rgsim/third_party/eigen-3.4.0 -o main
+```
+
+## Setting up your metric
+
+At the beginning of your `main` function you need the following:
+
+```cpp
+met g(4, vector<func>(4));
+met invg(4, vector<func>(4));
+
+for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < 4; ++j)
+        g[i][j] = metric_name(i, j);
+
+invg = inverseMet(g);
+
+christ Gam(4, vector<vector<func>>(4, vector<func>(4)));
+for (int i = 0; i < 4; ++i)
+    for (int k = 0; k < 4; ++k)
+        for (int l = 0; l < 4; ++l)
+            Gam[i][k][l] = christoffel(i, k, l, g, invg);
+```
+
+Replace `metric_name` with the name of your metric function.
+
+## Coding your own metric
+
+You can code your metric with the same technique as the Schwarzschild example:
+
+```cpp
+func schwarzschild(int i, int j)
 {
     if (i > j) swap(i, j);
 
+    if (i == 0 && j == 0)
+        return [](dual t, dual r, dual th, dual ph) {
+            dual res = c*c*(1.0 - r_s/r);
+            return res;
+        };
     if (i == 1 && j == 1)
         return [](dual t, dual r, dual th, dual ph) {
             dual res = -1.0/(1.0 - r_s/r);
             return res;
         };
-
+    if (i == 2 && j == 2)
+        return [](dual t, dual r, dual th, dual ph) {
+            dual res = -r*r;
+            return res;
+        };
+    if (i == 3 && j == 3)
+        return [](dual t, dual r, dual th, dual ph) {
+            dual res = -r*r*sin(th)*sin(th);
+            return res;
+        };
     return constant(0.0);
 }
 ```
 
-Keep the `dual res = ...; return res;` form inside every function.
-
-Non-diagonal terms (like `g03` in Kerr) just need one more `if`, the inverse
-and the initial `u^t` handle them automatically. For FLRW, write `a(t)` with
-`dual` operations (`pow`, `sinh`, ...) so it can be differentiated.
-
-## Things to keep in mind
-
-- The stop conditions in `geodesics` (`r_min`, `r_max`, `t < 0`) assume that
-  `q[1]` is a radius. In other coordinates, edit that line in `cc/geodesic.cc`.
-- For Kerr, the outer horizon is at `r+ = r_s (1 + sqrt(1 - spin^2)) / 2`, so
-  keep `r_min` above it (for example `1.05 * r+`). `1.01 * r_s` is for
-  Schwarzschild only.
-- Inside the Kerr ergoregion, `g00` can be negative and the initial `u^t` may
-  need a manual check. With `spin = 0`, `kerr` must give the same result as
-  `schwarzschild`.
-- At a singular point (horizon, poles where `sin(theta) = 0`) the result
-  becomes `inf` or `nan`. Don't start at `theta = 0` or `pi`.
-- The integrator is a plain Euler method, so use a small `dtau`.
-- The inverse metric is built as a chain of functions, so it is slow. This is
-  fine for a few tens of thousands of steps.
-  ## Credits
+## Credits
 
 - Derivatives: [autodiff](https://github.com/autodiff/autodiff) (MIT)
 - Linear algebra headers: [Eigen](https://eigen.tuxfamily.org) (MPL 2.0)

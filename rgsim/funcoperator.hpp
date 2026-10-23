@@ -1,29 +1,32 @@
-#include "funcoperator.h"
+#pragma once
+#include "types.hpp"
 
-using namespace std;
+namespace rgsim {
 
-func constant(double v)
+inline func constant(double v)
 {
-    return [v](dual t, dual r, dual th, dual ph) { dual res = v; return res; };
+    return [v](dual, dual, dual, dual) { dual res = v; return res; };
 }
 
-func operator+(func a, func b)
+inline func operator+(func a, func b)
 {
     return [a, b](dual t, dual r, dual th, dual ph)
     { dual x = a(t,r,th,ph); dual y = b(t,r,th,ph); dual res = x + y; return res; };
 }
-func operator-(func a, func b)
+inline func operator-(func a, func b)
 {
     return [a, b](dual t, dual r, dual th, dual ph)
     { dual x = a(t,r,th,ph); dual y = b(t,r,th,ph); dual res = x - y; return res; };
 }
-func operator*(func a, func b)
+inline func operator*(func a, func b)
 {
     return [a, b](dual t, dual r, dual th, dual ph)
     { dual x = a(t,r,th,ph); dual y = b(t,r,th,ph); dual res = x * y; return res; };
 }
-func operator/(func a, func b)
+inline func operator/(func a, func b)
 {
     return [a, b](dual t, dual r, dual th, dual ph)
     { dual x = a(t,r,th,ph); dual y = b(t,r,th,ph); dual res = x / y; return res; };
 }
+
+} // namespace rgsim
