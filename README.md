@@ -1,5 +1,7 @@
 # General Relativity Library
 
+> **Test branch, can break.** This branch explores a test `main` (`main.cc`), a `Makefile` to build it, and a small Python program (`python/Geodesics_topview.py`) to plot the results.
+
 With this library you can compute the Christoffel symbols for any 4x4 metric and use them to code your own metric (there is an example C++ file showing how). You can also compute the path of a particle or a light ray with the `geodesics` function. Most of the calculation relies on the derivatives provided by [autodiff](https://github.com/autodiff/autodiff).
 
 ## What you need
@@ -11,8 +13,10 @@ With this library you can compute the Christoffel symbols for any 4x4 metric and
 ## How to download
 
 ```bash
-git clone https://github.com/SalvorGoldstein/RG-simulation.git
+git clone -b <branch-name> https://github.com/SalvorGoldstein/RG-simulation.git
 ```
+
+Replace `<branch-name>` with the name of this test branch.
 
 ## How to use it
 
@@ -48,22 +52,21 @@ geodesics(double x1, double x2, double x3,
 
 The parameters (mass, spin and charge) of the Schwarzschild-type metrics are set in `example_metric.h`.
 
-## How to compile
-
-You can compile as you wish, but the command must include:
-
-```
--std=c++17 -Wall -Wextra -Wno-unused-parameter -O2 \
-           -MMD -MP \
-           -I . \
-           -I rgsim/third_party/autodiff \
-           -I rgsim/third_party/eigen-3.4.0
-```
-
-For example:
+## How to compile and run
 
 ```bash
-g++ -std=c++17 main.cpp -I . -I rgsim/third_party/autodiff -I rgsim/third_party/eigen-3.4.0 -o main
+make            # compile, produces ./main
+make execute    # compile and run ./main
+make aff        # plot the results with Python
+make clean      # remove build files
+```
+
+The test `main` asks for the number of geodesic layers, the starting distance and the spacing between layers (in units of r_s), then writes the paths to `python/data/`. `make aff` plots them.
+
+Without `make`:
+
+```bash
+g++ -std=c++17 -O2 -I . -I rgsim/third_party/autodiff -I rgsim/third_party/eigen-3.4.0 main.cc example_metric.cc -o main
 ```
 
 ## Setting up your metric
