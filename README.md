@@ -53,7 +53,11 @@ The parameters (mass, spin and charge) of the Schwarzschild-type metrics are set
 You can compile as you wish, but the command must include:
 
 ```
--I rgsim/third_party/autodiff -I rgsim/third_party/eigen-3.4.0
+-std=c++17 -Wall -Wextra -Wno-unused-parameter -O2 \
+           -MMD -MP \
+           -I . \
+           -I rgsim/third_party/autodiff \
+           -I rgsim/third_party/eigen-3.4.0
 ```
 
 For example:
