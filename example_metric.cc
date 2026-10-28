@@ -3,160 +3,87 @@
 
 using namespace std;
 
-func schwarzschild(int i, int j)
+// Uniform black string: 4D Schwarzschild times a flat fifth dimension w.
+// Coordinates: x0 = t, x1 = r, x2 = theta, x3 = phi, x4 = w.
+// Signature (+,-,-,-,-). A good first test: with u4 = 0 it must reproduce the 4D orbits.
+func black_string(int i, int j)
 {
     if (i > j) swap(i, j);
 
     if (i == 0 && j == 0)
-        return [](dual t, dual r, dual th, dual ph) {
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
             dual res = c*c*(1.0 - r_s/r);
             return res;
         };
     if (i == 1 && j == 1)
-        return [](dual t, dual r, dual th, dual ph) {
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
             dual res = -1.0/(1.0 - r_s/r);
             return res;
         };
     if (i == 2 && j == 2)
-        return [](dual t, dual r, dual th, dual ph) {
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
             dual res = -r*r;
             return res;
         };
     if (i == 3 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual th = x[2];
             dual res = -r*r*sin(th)*sin(th);
             return res;
         };
-    return constant(0.0);
-}
-
-func kerr(int i, int j)
-{
-    if (i > j) swap(i, j);
-
-    // a = J/(M c) (a length), sigma = r^2 + a^2 cos^2(th), delta = r^2 - r_s r + a^2
-
-    if (i == 0 && j == 0)
-        return [](dual t, dual r, dual th, dual ph) {
-            constexpr double a = J / (M * c);
-            dual sigma = r*r + a*a*cos(th)*cos(th);
-            dual res = c*c*(1.0 - r_s*r/sigma);
-            return res;
-        };
-
-    if (i == 0 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
-            constexpr double a = J / (M * c);
-            dual sigma = r*r + a*a*cos(th)*cos(th);
-            dual res = c*r_s*r*a*sin(th)*sin(th)/sigma;
-            return res;
-        };
-
-    if (i == 1 && j == 1)
-        return [](dual t, dual r, dual th, dual ph) {
-            constexpr double a = J / (M * c);
-            dual sigma = r*r + a*a*cos(th)*cos(th);
-            dual delta = r*r - r_s*r + a*a;
-            dual res = -sigma/delta;
-            return res;
-        };
-
-    if (i == 2 && j == 2)
-        return [](dual t, dual r, dual th, dual ph) {
-            constexpr double a = J / (M * c);
-            dual res = -(r*r + a*a*cos(th)*cos(th));
-            return res;
-        };
-
-    if (i == 3 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
-            constexpr double a = J / (M * c);
-            dual sigma = r*r + a*a*cos(th)*cos(th);
-            dual res = -(r*r + a*a + r_s*r*a*a*sin(th)*sin(th)/sigma)
-                       * sin(th)*sin(th);
-            return res;
-        };
-
-    return constant(0.0);
-}
-
-
-func kerr_newman(int i, int j)
-{
-    if (i > j) swap(i, j);
-
-    // sigma = r^2 + a^2 cos^2(th), delta = r^2 - r_s r + a^2 + r_Q^2
-    // e = r_s r - r_Q^2
-
-    if (i == 0 && j == 0)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual sigma = r*r + a_spin*a_spin*cos(th)*cos(th);
-            dual e = r_s*r - r_Q2;
-            dual res = c*c*(1.0 - e/sigma);
-            return res;
-        };
-
-    if (i == 0 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual sigma = r*r + a_spin*a_spin*cos(th)*cos(th);
-            dual e = r_s*r - r_Q2;
-            dual res = c*e*a_spin*sin(th)*sin(th)/sigma;
-            return res;
-        };
-
-    if (i == 1 && j == 1)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual sigma = r*r + a_spin*a_spin*cos(th)*cos(th);
-            dual delta = r*r - r_s*r + a_spin*a_spin + r_Q2;
-            dual res = -sigma/delta;
-            return res;
-        };
-
-    if (i == 2 && j == 2)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual res = -(r*r + a_spin*a_spin*cos(th)*cos(th));
-            return res;
-        };
-
-    if (i == 3 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual sigma = r*r + a_spin*a_spin*cos(th)*cos(th);
-            dual e = r_s*r - r_Q2;
-            dual res = -(r*r + a_spin*a_spin + e*a_spin*a_spin*sin(th)*sin(th)/sigma)
-                       * sin(th)*sin(th);
-            return res;
-        };
-
-    return constant(0.0);
-}
-
-func ellis_wormhole(int i, int j)
-{
-    if (i > j) swap(i, j);
-
-    if (i == 0 && j == 0)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual res = c*c;
-            return res;
-        };
-
-    if (i == 1 && j == 1)
-        return [](dual t, dual r, dual th, dual ph) {
+    if (i == 4 && j == 4)
+        return [](const std::array<dual,N>& x) {
             dual res = -1.0;
             return res;
         };
+    return constant(0.0);
+}
 
+// 5D Schwarzschild-Tangherlini black hole:
+//   ds^2 = c^2 f dt^2 - dr^2/f - r^2 ( dchi^2 + sin^2(chi) ( dtheta^2 + sin^2(theta) dphi^2 ) )
+//   f = 1 - (r_h5/r)^2
+// Coordinates: x0 = t, x1 = r, x2 = chi, x3 = theta, x4 = phi.
+// Avoid starting exactly on a pole (chi or theta = 0 or pi); chi = theta = pi/2 is fine.
+func tangherlini(int i, int j)
+{
+    if (i > j) swap(i, j);
+
+    if (i == 0 && j == 0)
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual res = c*c*(1.0 - r_h5*r_h5/(r*r));
+            return res;
+        };
+    if (i == 1 && j == 1)
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual res = -1.0/(1.0 - r_h5*r_h5/(r*r));
+            return res;
+        };
     if (i == 2 && j == 2)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual res = -(r*r + a*a);
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual res = -r*r;
             return res;
         };
-
     if (i == 3 && j == 3)
-        return [](dual t, dual r, dual th, dual ph) {
-            dual res = -(r*r + a*a)*sin(th)*sin(th);
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual chi = x[2];
+            dual res = -r*r*sin(chi)*sin(chi);
             return res;
         };
-
+    if (i == 4 && j == 4)
+        return [](const std::array<dual,N>& x) {
+            dual r = x[1];
+            dual chi = x[2];
+            dual th = x[3];
+            dual res = -r*r*sin(chi)*sin(chi)*sin(th)*sin(th);
+            return res;
+        };
     return constant(0.0);
 }

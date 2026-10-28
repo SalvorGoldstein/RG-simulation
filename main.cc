@@ -29,19 +29,19 @@ int main()
     }
 
     int n = 2 * npre;
-    met g(4, vector<func>(4));
-    met invg(4, vector<func>(4));
+    met g(N, vector<func>(N));
+    met invg(N, vector<func>(N));
 
-    for (int i = 0; i < 4; ++i)
-        for (int k = 0; k < 4; ++k)
-            g[i][k] = kerr_newman(i, k);        // or schwarzschild(i, k)
+    for (int i = 0; i < N; ++i)
+        for (int k = 0; k < N; ++k)
+            g[i][k] = black_string(i, k);
 
     invg = inverseMet(g);
 
-    christ Gam(4, vector<vector<func>>(4, vector<func>(4)));
-    for (int i = 0; i < 4; ++i)
-        for (int k = 0; k < 4; ++k)
-            for (int l = 0; l < 4; ++l)
+    christ Gam(N, vector<vector<func>>(N, vector<func>(N)));
+    for (int i = 0; i < N; ++i)
+        for (int k = 0; k < N; ++k)
+            for (int l = 0; l < N; ++l)
                 Gam[i][k][l] = christoffel(i, k, l, g, invg);
 
     fstream rich;
@@ -63,27 +63,31 @@ int main()
 
     double j = j0;
     for (int i = 0; i < n; i++) {
-        double uphi   = v / (r_s * j * sqrt(2));
+        double uphi   = v / (r_s * j * sqrt(3));
         double utheta = 0;   // v / (r_s * j);
-        double ur     = -v / sqrt(2);
-
+        double ur     = -v / sqrt(3);
+        double uw = -v / sqrt(3);
+        // x4 = w (extra dimension) starts at 0 with u4 = 0, so the motion stays 4D
         if (i % 2) {
-            geodesics(r_s * j, pi / 2.0, 0.0, ur, utheta, uphi,
+            geodesics(r_s * j, pi / 2.0, 0.0, 0.0,
+                      ur, utheta, uphi, uw,
                       steps, dtau,
                       "python/data/Geodesics" + to_string(i) + ".dat",
                       g, Gam, geo, false,
-                      r_max, infinity, infinity,   // x1max, x2max, x3max
-                      r_s);                        // x1min
+                      r_max, infinity, infinity, infinity,   // x1max, x2max, x3max, x4max
+                      r_s*1.01);                                  // x1min
             j = j + dj;
         }
         else {
-            geodesics(r_s * j, pi / 2.0, 0.0, ur, -utheta, -uphi,
+            geodesics(r_s * j, pi / 2.0, 0.0, 0.0,
+                      ur, -utheta, -uphi, uw,
                       steps, dtau,
                       "python/data/Geodesics" + to_string(i) + ".dat",
                       g, Gam, geo, false,
-                      r_max, infinity, infinity,
-                      r_s);
+                      r_max, infinity, infinity, infinity,
+                      r_s*1.01);
         }
     }
+    cout << r_s << endl;
     return 0;
 }

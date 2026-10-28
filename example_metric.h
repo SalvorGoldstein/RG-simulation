@@ -16,7 +16,10 @@ inline constexpr double a_spin  = J / (M * c);
 inline constexpr double r_Q2    = G * Q * Q / (4 * pi * eps0 * c * c * c * c);
 constexpr double a = r_s;
 
-func schwarzschild(int i, int j);
-func kerr(int i, int j);
-func kerr_newman(int i, int j);
-func ellis_wormhole(int i, int j);
+inline constexpr double r_h5 = r_s;
+ 
+
+func black_string(int i, int j);
+ 
+
+func tangherlini(int i, int j);

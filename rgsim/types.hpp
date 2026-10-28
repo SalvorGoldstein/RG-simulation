@@ -1,21 +1,24 @@
 #pragma once
 
 #include <vector>
+#include <array>
 #include <functional>
 #include <string>
 #include <cmath>
 #include <autodiff/forward/dual.hpp>
 
+constexpr int N = 5;
+
 namespace rgsim {
 
 using autodiff::dual;
 
-using func   = std::function<dual(dual, dual, dual, dual)>;
+using func   = std::function<dual(const std::array<dual,N>&)>;
 using met    = std::vector<std::vector<func>>;
 using christ = std::vector<std::vector<std::vector<func>>>;
 
-// Right-hand side of the equations of motion: q = (x0..x3, u0..u3)
-using rhs_fn = std::function<void(double (&)[8], double, double (&)[8], int,
+// Right-hand side of the equations of motion: q = (x0..x4, u0..u4)
+using rhs_fn = std::function<void(double (&)[2*N], double, double (&)[2*N], int,
                                   const christ&)>;
 
 namespace constants {
